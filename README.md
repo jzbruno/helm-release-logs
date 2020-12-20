@@ -15,7 +15,7 @@ A Helm plugin to get debug information about the Kubernetes resources creaeted b
 ## Install
 
 ```bash
-helm plugin install https://github.com/jzbruno/helm-release-logs.git
+helm plugin install https://github.com/jzbruno/helm-release-logs/
 ```
 
 ## Usage

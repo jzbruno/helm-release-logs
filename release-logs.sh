@@ -88,15 +88,15 @@ ${helm} get manifest "${release}" | ${kubectl} get -o wide -f - > "${dir}/resour
 
 for pod in $(${kubectl} get pods -o name); do
   echo "Saving describe output for ${pod}"
-  ${kubectl} describe ${pod} > "${dir}/${pod}.describe.log" || true
+  ${kubectl} describe "${pod}" > "${dir}/${pod}.describe.log" || true
   
-  for container in $(${kubectl} get ${pod} -o json | jq -r '.spec.initContainers[]?.name'); do
+  for container in $(${kubectl} get "${pod}" -o json | jq -r '.spec.initContainers[]?.name'); do
     echo "Saving logs for init container ${container} in pod ${pod}"
-    ${kubectl} logs ${pod} -c ${container} > "${dir}/${pod}_${container}.log" || true
+    ${kubectl} logs "${pod}" -c "${container}" > "${dir}/${pod}_${container}.log" || true
   done
   
-  for container in $(${kubectl} get ${pod} -o json | jq -r '.spec.containers[]?.name'); do
+  for container in $(${kubectl} get "${pod}" -o json | jq -r '.spec.containers[]?.name'); do
     echo "Saving logs for container ${container} in pod ${pod}"
-    ${kubectl} logs ${pod} -c ${container} > "${dir}/${pod}_${container}.log" || true
+    ${kubectl} logs "${pod}" -c "${container}" > "${dir}/${pod}_${container}.log" || true
   done
 done
