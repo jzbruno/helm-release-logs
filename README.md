@@ -27,6 +27,6 @@ helm plugin install https://github.com/jzbruno/helm-release-logs/
 ## Usage
 
 ```bash
-helm release-logs <releasa>
+helm release-logs <release>
 helm release-logs -h
 ```
