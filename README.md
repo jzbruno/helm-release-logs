@@ -12,6 +12,12 @@ A Helm plugin to get debug information about the Kubernetes resources creaeted b
 * Kubernetes describe of each pod
 * Kubernetes logs for each container
 
+## Requirements
+
+* Helm v3
+* Kubectl
+* jq
+
 ## Install
 
 ```bash
