@@ -85,6 +85,7 @@ ${helm} get values "${release}" --all > "${dir}/values-computed.yaml" || true
 
 echo "Saving Kubernetes resource list ..."
 ${helm} get manifest "${release}" | ${kubectl} get -o wide -f - > "${dir}/resources.log" || true
+${helm} get hooks "${release}" | ${kubectl} get -o wide -f - >> "${dir}/resources.log" || true
 
 for pod in $(${kubectl} get pods -o name); do
   echo "Saving describe output for ${pod}"
