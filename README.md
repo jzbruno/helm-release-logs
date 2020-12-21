@@ -2,7 +2,7 @@
 
 ## Overview
 
-A Helm plugin to get debug information about the Kubernetes resources creaeted by a release. The output is useful for troubleshooting in a CI / CD environment where it is valuable to capture the state of a release following a failure. The following information will be output to the output directory."
+A Helm plugin to get debug information about the Kubernetes resources creaeted by a release. The output is useful for troubleshooting in a CI / CD environment where it is valuable to capture the state of a release following a failure. The following information will be output to the output directory.
 
 * Environment variables
 * Helm release list
