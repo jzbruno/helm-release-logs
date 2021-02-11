@@ -105,16 +105,16 @@ ${helm} get manifest "${release}" | ${kubectl} get -o wide -f - 2>/dev/null > "$
 ${helm} get hooks "${release}" | ${kubectl} get -o wide -f - 2>/dev/null >> "${dir}/resources.log" || true
 
 echo "Gathering resources for log collection"
-for resource in $((${helm} get hooks "${release}"; ${helm} get manifest "${release}") | kubectl get -f - -o json 2>/dev/null | jq -r '.items[]? | "\(.kind):\(.metadata.name)"'); do
-  type=$(echo ${resource} | cut -d ':' -f 1)
-  name=$(echo ${resource} | cut -d ':' -f 2)
+for resource in $( (${helm} get hooks "${release}"; ${helm} get manifest "${release}") | kubectl get -f - -o json 2>/dev/null | jq -r '.items[]? | "\(.kind):\(.metadata.name)"'); do
+  type=$(echo "${resource}" | cut -d ':' -f 1)
+  name=$(echo "${resource}" | cut -d ':' -f 2)
   case ${type} in
     Pod)
-      getPodLogs ${name}
+      getPodLogs "${name}"
       ;;
     Deployment)
       echo "Gathering logs from pods in deployment/${name}"
-      selectors=$(${kubectl} get deployment ${name} -o json | jq '.spec.selector.matchLabels' | jq -c 'to_entries|map("\(.key)=\(.value|tostring)")|.[]' | xargs | sed -e 's/ /,/g') || true
+      selectors=$(${kubectl} get deployment "${name}" -o json | jq '.spec.selector.matchLabels' | jq -c 'to_entries|map("\(.key)=\(.value|tostring)")|.[]' | xargs | sed -e 's/ /,/g') || true
       if [[ ! "${selectors}" ]]; then
         echo "->unable to determine selectors for pod association"
         continue
@@ -126,7 +126,7 @@ for resource in $((${helm} get hooks "${release}"; ${helm} get manifest "${relea
       fi
       selectors="${selectors},pod-template-hash=${hash}"
       for pod in $(${kubectl} get pod --selector "${selectors}" --no-headers | awk '{print $1}' | head -5); do
-        getPodLogs ${pod}
+        getPodLogs "${pod}"
       done
       ;;
   esac
