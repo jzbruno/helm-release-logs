@@ -35,16 +35,16 @@ function getPodLogs() {
   pod=$1
 
   echo "Saving describe output for ${pod}"
-  ${kubectl} describe pod "${pod}" > "${dir}/${pod}.describe.log" || true
+  ${kubectl} describe pod "${pod}" > "${dir}/pod/${pod}.describe.log" || true
   
   for container in $(${kubectl} get pod "${pod}" -o json | jq -r '.spec.initContainers[]?.name'); do
     echo "Saving logs for init container ${container} in pod ${pod}"
-    ${kubectl} logs "${pod}" -c "${container}" > "${dir}/${pod}_${container}.log" || true
+    ${kubectl} logs "${pod}" -c "${container}" > "${dir}/pod/${pod}_${container}.log" || true
   done
   
   for container in $(${kubectl} get pod "${pod}" -o json | jq -r '.spec.containers[]?.name'); do
     echo "Saving logs for container ${container} in pod ${pod}"
-    ${kubectl} logs "${pod}" -c "${container}" > "${dir}/${pod}_${container}.log" || true
+    ${kubectl} logs "${pod}" -c "${container}" > "${dir}/pod/${pod}_${container}.log" || true
   done 
 }
 
