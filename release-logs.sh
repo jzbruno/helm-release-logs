@@ -31,6 +31,23 @@ function help() {
   exit 0
 }
 
+function getPodLogs() {
+  pod=$1
+
+  echo "Saving describe output for ${pod}"
+  ${kubectl} describe pod "${pod}" > "${dir}/${pod}.describe.log" || true
+  
+  for container in $(${kubectl} get pod "${pod}" -o json | jq -r '.spec.initContainers[]?.name'); do
+    echo "Saving logs for init container ${container} in pod ${pod}"
+    ${kubectl} logs "${pod}" -c "${container}" > "${dir}/${pod}_${container}.log" || true
+  done
+  
+  for container in $(${kubectl} get pod "${pod}" -o json | jq -r '.spec.containers[]?.name'); do
+    echo "Saving logs for container ${container} in pod ${pod}"
+    ${kubectl} logs "${pod}" -c "${container}" > "${dir}/${pod}_${container}.log" || true
+  done 
+}
+
 
 namespace="${HELM_NAMESPACE}"
 dir="./logs"
@@ -84,20 +101,33 @@ echo "Saving Helm computed values ..."
 ${helm} get values "${release}" --all > "${dir}/values-computed.yaml" || true
 
 echo "Saving Kubernetes resource list ..."
-${helm} get manifest "${release}" | ${kubectl} get -o wide -f - > "${dir}/resources.log" || true
-${helm} get hooks "${release}" | ${kubectl} get -o wide -f - >> "${dir}/resources.log" || true
+${helm} get manifest "${release}" | ${kubectl} get -o wide -f - 2>/dev/null > "${dir}/resources.log" || true
+${helm} get hooks "${release}" | ${kubectl} get -o wide -f - 2>/dev/null >> "${dir}/resources.log" || true
 
-for pod in $(${kubectl} get pods -o name); do
-  echo "Saving describe output for ${pod}"
-  ${kubectl} describe "${pod}" > "${dir}/${pod}.describe.log" || true
-  
-  for container in $(${kubectl} get "${pod}" -o json | jq -r '.spec.initContainers[]?.name'); do
-    echo "Saving logs for init container ${container} in pod ${pod}"
-    ${kubectl} logs "${pod}" -c "${container}" > "${dir}/${pod}_${container}.log" || true
-  done
-  
-  for container in $(${kubectl} get "${pod}" -o json | jq -r '.spec.containers[]?.name'); do
-    echo "Saving logs for container ${container} in pod ${pod}"
-    ${kubectl} logs "${pod}" -c "${container}" > "${dir}/${pod}_${container}.log" || true
-  done
+echo "Gathering resources for log collection"
+for resource in $( (${helm} get hooks "${release}"; ${helm} get manifest "${release}") | kubectl get -f - -o json 2>/dev/null | jq -r '.items[]? | "\(.kind):\(.metadata.name)"'); do
+  type=$(echo "${resource}" | cut -d ':' -f 1)
+  name=$(echo "${resource}" | cut -d ':' -f 2)
+  case ${type} in
+    Pod)
+      getPodLogs "${name}"
+      ;;
+    Deployment)
+      echo "Gathering logs from pods in deployment/${name}"
+      selectors=$(${kubectl} get deployment "${name}" -o json | jq '.spec.selector.matchLabels' | jq -c 'to_entries|map("\(.key)=\(.value|tostring)")|.[]' | xargs | sed -e 's/ /,/g') || true
+      if [[ ! "${selectors}" ]]; then
+        echo "->unable to determine selectors for pod association"
+        continue
+      fi
+      hash=$(${kubectl} get replicaset --selector "${selectors}" --no-headers --sort-by=.metadata.creationTimestamp -o=jsonpath='{.items[0].metadata.labels.pod-template-hash}')
+      if [[ ! "${hash}" ]]; then
+        echo "->unable to determine replicaset for pod association"
+        continue
+      fi
+      selectors="${selectors},pod-template-hash=${hash}"
+      for pod in $(${kubectl} get pod --selector "${selectors}" --no-headers | awk '{print $1}' | head -5); do
+        getPodLogs "${pod}"
+      done
+      ;;
+  esac
 done
