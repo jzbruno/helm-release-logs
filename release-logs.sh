@@ -105,7 +105,7 @@ ${helm} get manifest "${release}" | ${kubectl} get -o wide -f - 2>/dev/null > "$
 ${helm} get hooks "${release}" | ${kubectl} get -o wide -f - 2>/dev/null >> "${dir}/resources.log" || true
 
 echo "Gathering resources for log collection"
-for resource in $( (${helm} get hooks "${release}"; ${helm} get manifest "${release}") | kubectl get -f - -o json 2>/dev/null | jq -r '.items[]? | "\(.kind):\(.metadata.name)"'); do
+for resource in $( (${helm} get hooks "${release}"; ${helm} get manifest "${release}") | ${kubectl} get -f - -o json 2>/dev/null | jq -r '.items[]? | "\(.kind):\(.metadata.name)"'); do
   type=$(echo "${resource}" | cut -d ':' -f 1)
   name=$(echo "${resource}" | cut -d ':' -f 2)
   case ${type} in

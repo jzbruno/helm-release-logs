@@ -1,5 +1,5 @@
 name: release-logs
-version: 0.3.0
+version: 0.3.1
 usage: Get debug info about resources created by a release.
 description: A Helm plugin to get debug information about the Kubernetes resources creaeted by a release.
 command: $HELM_PLUGIN_DIR/release-logs.sh
