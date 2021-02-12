@@ -106,11 +106,11 @@ ${helm} get manifest "${release}" | kubectl get -o wide -f - 2>/dev/null > "${di
 ${helm} get hooks "${release}" | kubectl get -o wide -f - 2>/dev/null >> "${dir}/resources.log" || true
 
 echo "Gathering resources for log collection"
+kubectl config set-context --current --namespace=${namespace}
 for resource in $( (${helm} get hooks "${release}"; ${helm} get manifest "${release}") | kubectl get -f - -o json 2>/dev/null | jq -r '.items[]? | "\(.kind):\(.metadata.name):\(.metadata.namespace)"'); do
   type=$(echo "${resource}" | cut -d ':' -f 1)
   name=$(echo "${resource}" | cut -d ':' -f 2)
   ns=$(echo "${resource}" | cut -d ':' -f 3)
-  ns=${ns:-${namespace}}
   case ${type} in
     Pod)
       getPodLogs "${name}" "${ns}"
