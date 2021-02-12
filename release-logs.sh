@@ -37,17 +37,17 @@ function getPodLogs() {
   kubectl="kubectl -n ${ns}"
 
   echo "Saving describe output for pod/${ns}/${pod}"
-  ${kubectl} describe pod "${pod}" > "${dir}/${ns}_${pod}.describe.log" || true
+  ${kubectl} describe pod "${pod}" > "${dir}/pod/${ns}_${pod}.describe.log" || true
   
   for container in $(${kubectl} get pod "${pod}" -o json | jq -r '.spec.initContainers[]?.name'); do
     echo " > Saving logs for init container ${container} in pod ${ns}/${pod}"
-    ${kubectl} logs "${pod}" -c "${container}" > "${dir}/${ns}_${pod}_${container}.log" || true
+    ${kubectl} logs "${pod}" -c "${container}" > "${dir}/pod/${ns}_${pod}_${container}.log" || true
   done
   
   for container in $(${kubectl} get pod "${pod}" -o json | jq -r '.spec.containers[]?.name'); do
     echo " > Saving logs for container ${container} in pod ${ns}/${pod}"
-    ${kubectl} logs "${pod}" -c "${container}" > "${dir}/${ns}_${pod}_${container}.log" || true
-  done 
+    ${kubectl} logs "${pod}" -c "${container}" > "${dir}/pod/${ns}_${pod}_${container}.log" || true
+  done
 }
 
 
@@ -85,7 +85,7 @@ release="${args[0]}"
 
 helm="${HELM_BIN} -n ${namespace}"
 
-mkdir -p "${dir}"
+mkdir -p "${dir}/pod"
 
 echo "Gathering info for release ${release} in namespace ${namespace} ..."
 
