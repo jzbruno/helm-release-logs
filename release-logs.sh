@@ -33,19 +33,21 @@ function help() {
 
 function getPodLogs() {
   pod=$1
+  ns=$2
+  kubectl="kubectl -n ${ns}"
 
-  echo "Saving describe output for ${pod}"
-  ${kubectl} describe pod "${pod}" > "${dir}/pod/${pod}.describe.log" || true
+  echo "Saving describe output for pod/${ns}/${pod}"
+  ${kubectl} describe pod "${pod}" > "${dir}/pod/${ns}_${pod}.describe.log" || true
   
   for container in $(${kubectl} get pod "${pod}" -o json | jq -r '.spec.initContainers[]?.name'); do
-    echo "Saving logs for init container ${container} in pod ${pod}"
-    ${kubectl} logs "${pod}" -c "${container}" > "${dir}/pod/${pod}_${container}.log" || true
+    echo " > Saving logs for init container ${container} in pod ${ns}/${pod}"
+    ${kubectl} logs "${pod}" -c "${container}" > "${dir}/pod/${ns}_${pod}_${container}.log" || true
   done
   
   for container in $(${kubectl} get pod "${pod}" -o json | jq -r '.spec.containers[]?.name'); do
-    echo "Saving logs for container ${container} in pod ${pod}"
-    ${kubectl} logs "${pod}" -c "${container}" > "${dir}/pod/${pod}_${container}.log" || true
-  done 
+    echo " > Saving logs for container ${container} in pod ${ns}/${pod}"
+    ${kubectl} logs "${pod}" -c "${container}" > "${dir}/pod/${ns}_${pod}_${container}.log" || true
+  done
 }
 
 
@@ -82,7 +84,6 @@ fi
 release="${args[0]}"
 
 helm="${HELM_BIN} -n ${namespace}"
-kubectl="kubectl -n ${namespace}"
 
 mkdir -p "${dir}/pod"
 
@@ -101,32 +102,34 @@ echo "Saving Helm computed values ..."
 ${helm} get values "${release}" --all > "${dir}/values-computed.yaml" || true
 
 echo "Saving Kubernetes resource list ..."
-${helm} get manifest "${release}" | ${kubectl} get -o wide -f - 2>/dev/null > "${dir}/resources.log" || true
-${helm} get hooks "${release}" | ${kubectl} get -o wide -f - 2>/dev/null >> "${dir}/resources.log" || true
+${helm} get manifest "${release}" | kubectl get -o wide -f - 2>/dev/null > "${dir}/resources.log" || true
+${helm} get hooks "${release}" | kubectl get -o wide -f - 2>/dev/null >> "${dir}/resources.log" || true
 
 echo "Gathering resources for log collection"
-for resource in $( (${helm} get hooks "${release}"; ${helm} get manifest "${release}") | ${kubectl} get -f - -o json 2>/dev/null | jq -r '.items[]? | "\(.kind):\(.metadata.name)"'); do
+kubectl config set-context --current --namespace="${namespace}"
+for resource in $( (${helm} get hooks "${release}"; ${helm} get manifest "${release}") | kubectl get -f - -o json 2>/dev/null | jq -r '.items[]? | "\(.kind):\(.metadata.name):\(.metadata.namespace)"'); do
   type=$(echo "${resource}" | cut -d ':' -f 1)
   name=$(echo "${resource}" | cut -d ':' -f 2)
+  ns=$(echo "${resource}" | cut -d ':' -f 3)
   case ${type} in
     Pod)
-      getPodLogs "${name}"
+      getPodLogs "${name}" "${ns}"
       ;;
     Deployment)
-      echo "Gathering logs from pods in deployment/${name}"
-      selectors=$(${kubectl} get deployment "${name}" -o json | jq '.spec.selector.matchLabels' | jq -c 'to_entries|map("\(.key)=\(.value|tostring)")|.[]' | xargs | sed -e 's/ /,/g') || true
+      echo "Gathering logs from pods in deployment/${ns}/${name}"
+      selectors=$(kubectl get deployment -n "${ns}" "${name}" -o json | jq '.spec.selector.matchLabels' | jq -c 'to_entries|map("\(.key)=\(.value|tostring)")|.[]' | xargs | sed -e 's/ /,/g') || true
       if [[ ! "${selectors}" ]]; then
         echo "->unable to determine selectors for pod association"
         continue
       fi
-      hash=$(${kubectl} get replicaset --selector "${selectors}" --no-headers --sort-by=.metadata.creationTimestamp -o=jsonpath='{.items[0].metadata.labels.pod-template-hash}')
+      hash=$(kubectl get replicaset -n "${ns}" --selector "${selectors}" --no-headers --sort-by=.metadata.creationTimestamp -o=jsonpath='{.items[0].metadata.labels.pod-template-hash}')
       if [[ ! "${hash}" ]]; then
         echo "->unable to determine replicaset for pod association"
         continue
       fi
       selectors="${selectors},pod-template-hash=${hash}"
-      for pod in $(${kubectl} get pod --selector "${selectors}" --no-headers | awk '{print $1}' | head -5); do
-        getPodLogs "${pod}"
+      for pod in $(kubectl get pod -n "${ns}" --selector "${selectors}" --no-headers | awk '{print $1}' | head -5); do
+        getPodLogs "${pod}" "${ns}"
       done
       ;;
   esac
