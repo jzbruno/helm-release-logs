@@ -95,6 +95,12 @@ env | grep -v PASS | sort > "${dir}/env"
 echo "Saving Helm release list ..."
 ${helm} ls > "${dir}/releases.log" || true
 
+echo "Checking for Helm release ${release} ..."
+if ! ${helm} ls -q | grep "${release}"; then
+  echo "Release ${release} not found. This may mean the namespace is incorrect or the Helm install or upgrade failed."
+  exit 0
+fi
+
 echo "Saving Helm user values ..."
 ${helm} get values "${release}" > "${dir}/values-user.yaml" || true
 
