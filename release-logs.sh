@@ -96,7 +96,7 @@ echo "Saving Helm release list ..."
 ${helm} ls > "${dir}/releases.log" || true
 
 echo "Checking for Helm release ${release} ..."
-if ! ${helm} ls -q | grep "${release}"; then
+if ! ${helm} ls -q | grep -q "${release}"; then
   echo "Release ${release} not found. This may mean the namespace is incorrect or the Helm install or upgrade failed."
   exit 0
 fi
